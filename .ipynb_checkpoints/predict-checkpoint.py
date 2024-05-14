@@ -29,6 +29,10 @@ from metrics import image_level_metrics, pixel_level_metrics
 from tqdm import tqdm
 from scipy.ndimage import gaussian_filter
 def predict(args):
+    
+    # import pdb
+    # pdb.set_trace()
+    
     img_size = args.image_size
     features_list = args.features_list
     dataset_dir = args.data_path
@@ -110,65 +114,65 @@ def predict(args):
             results[cls_name[0]]['anomaly_maps'].append(anomaly_map)
             # visualizer(items['img_path'], anomaly_map.detach().cpu().numpy(), args.image_size, args.save_path, cls_name)
 
-    table_ls = []
-    image_auroc_list = []
-    image_ap_list = []
-    pixel_auroc_list = []
-    pixel_aupro_list = []
-    for obj in obj_list:
-        table = []
-        table.append(obj)
-        results[obj]['imgs_masks'] = torch.cat(results[obj]['imgs_masks'])
-        results[obj]['anomaly_maps'] = torch.cat(results[obj]['anomaly_maps']).detach().cpu().numpy()
-        if args.metrics == 'image-level':
-            image_auroc = image_level_metrics(results, obj, "image-auroc")
-            image_ap = image_level_metrics(results, obj, "image-ap")
-            table.append(str(np.round(image_auroc * 100, decimals=1)))
-            table.append(str(np.round(image_ap * 100, decimals=1)))
-            image_auroc_list.append(image_auroc)
-            image_ap_list.append(image_ap) 
-        elif args.metrics == 'pixel-level':
-            pixel_auroc = pixel_level_metrics(results, obj, "pixel-auroc")
-            pixel_aupro = pixel_level_metrics(results, obj, "pixel-aupro")
-            table.append(str(np.round(pixel_auroc * 100, decimals=1)))
-            table.append(str(np.round(pixel_aupro * 100, decimals=1)))
-            pixel_auroc_list.append(pixel_auroc)
-            pixel_aupro_list.append(pixel_aupro)
-        elif args.metrics == 'image-pixel-level':
-            image_auroc = image_level_metrics(results, obj, "image-auroc")
-            image_ap = image_level_metrics(results, obj, "image-ap")
-            pixel_auroc = pixel_level_metrics(results, obj, "pixel-auroc")
-            pixel_aupro = pixel_level_metrics(results, obj, "pixel-aupro")
-            table.append(str(np.round(pixel_auroc * 100, decimals=1)))
-            table.append(str(np.round(pixel_aupro * 100, decimals=1)))
-            table.append(str(np.round(image_auroc * 100, decimals=1)))
-            table.append(str(np.round(image_ap * 100, decimals=1)))
-            image_auroc_list.append(image_auroc)
-            image_ap_list.append(image_ap) 
-            pixel_auroc_list.append(pixel_auroc)
-            pixel_aupro_list.append(pixel_aupro)
-        table_ls.append(table)
+#     table_ls = []
+#     image_auroc_list = []
+#     image_ap_list = []
+#     pixel_auroc_list = []
+#     pixel_aupro_list = []
+#     for obj in obj_list:
+#         table = []
+#         table.append(obj)
+#         results[obj]['imgs_masks'] = torch.cat(results[obj]['imgs_masks'])
+#         results[obj]['anomaly_maps'] = torch.cat(results[obj]['anomaly_maps']).detach().cpu().numpy()
+#         if args.metrics == 'image-level':
+#             image_auroc = image_level_metrics(results, obj, "image-auroc")
+#             image_ap = image_level_metrics(results, obj, "image-ap")
+#             table.append(str(np.round(image_auroc * 100, decimals=1)))
+#             table.append(str(np.round(image_ap * 100, decimals=1)))
+#             image_auroc_list.append(image_auroc)
+#             image_ap_list.append(image_ap) 
+#         elif args.metrics == 'pixel-level':
+#             pixel_auroc = pixel_level_metrics(results, obj, "pixel-auroc")
+#             pixel_aupro = pixel_level_metrics(results, obj, "pixel-aupro")
+#             table.append(str(np.round(pixel_auroc * 100, decimals=1)))
+#             table.append(str(np.round(pixel_aupro * 100, decimals=1)))
+#             pixel_auroc_list.append(pixel_auroc)
+#             pixel_aupro_list.append(pixel_aupro)
+#         elif args.metrics == 'image-pixel-level':
+#             image_auroc = image_level_metrics(results, obj, "image-auroc")
+#             image_ap = image_level_metrics(results, obj, "image-ap")
+#             pixel_auroc = pixel_level_metrics(results, obj, "pixel-auroc")
+#             pixel_aupro = pixel_level_metrics(results, obj, "pixel-aupro")
+#             table.append(str(np.round(pixel_auroc * 100, decimals=1)))
+#             table.append(str(np.round(pixel_aupro * 100, decimals=1)))
+#             table.append(str(np.round(image_auroc * 100, decimals=1)))
+#             table.append(str(np.round(image_ap * 100, decimals=1)))
+#             image_auroc_list.append(image_auroc)
+#             image_ap_list.append(image_ap) 
+#             pixel_auroc_list.append(pixel_auroc)
+#             pixel_aupro_list.append(pixel_aupro)
+#         table_ls.append(table)
 
-    if args.metrics == 'image-level':
-        # logger
-        table_ls.append(['mean', 
-                        str(np.round(np.mean(image_auroc_list) * 100, decimals=1)),
-                        str(np.round(np.mean(image_ap_list) * 100, decimals=1))])
-        results = tabulate(table_ls, headers=['objects', 'image_auroc', 'image_ap'], tablefmt="pipe")
-    elif args.metrics == 'pixel-level':
-        # logger
-        table_ls.append(['mean', str(np.round(np.mean(pixel_auroc_list) * 100, decimals=1)),
-                        str(np.round(np.mean(pixel_aupro_list) * 100, decimals=1))
-                       ])
-        results = tabulate(table_ls, headers=['objects', 'pixel_auroc', 'pixel_aupro'], tablefmt="pipe")
-    elif args.metrics == 'image-pixel-level':
-        # logger
-        table_ls.append(['mean', str(np.round(np.mean(pixel_auroc_list) * 100, decimals=1)),
-                        str(np.round(np.mean(pixel_aupro_list) * 100, decimals=1)), 
-                        str(np.round(np.mean(image_auroc_list) * 100, decimals=1)),
-                        str(np.round(np.mean(image_ap_list) * 100, decimals=1))])
-        results = tabulate(table_ls, headers=['objects', 'pixel_auroc', 'pixel_aupro', 'image_auroc', 'image_ap'], tablefmt="pipe")
-    logger.info("\n%s", results)
+#     if args.metrics == 'image-level':
+#         # logger
+#         table_ls.append(['mean', 
+#                         str(np.round(np.mean(image_auroc_list) * 100, decimals=1)),
+#                         str(np.round(np.mean(image_ap_list) * 100, decimals=1))])
+#         results = tabulate(table_ls, headers=['objects', 'image_auroc', 'image_ap'], tablefmt="pipe")
+#     elif args.metrics == 'pixel-level':
+#         # logger
+#         table_ls.append(['mean', str(np.round(np.mean(pixel_auroc_list) * 100, decimals=1)),
+#                         str(np.round(np.mean(pixel_aupro_list) * 100, decimals=1))
+#                        ])
+#         results = tabulate(table_ls, headers=['objects', 'pixel_auroc', 'pixel_aupro'], tablefmt="pipe")
+#     elif args.metrics == 'image-pixel-level':
+#         # logger
+#         table_ls.append(['mean', str(np.round(np.mean(pixel_auroc_list) * 100, decimals=1)),
+#                         str(np.round(np.mean(pixel_aupro_list) * 100, decimals=1)), 
+#                         str(np.round(np.mean(image_auroc_list) * 100, decimals=1)),
+#                         str(np.round(np.mean(image_ap_list) * 100, decimals=1))])
+#         results = tabulate(table_ls, headers=['objects', 'pixel_auroc', 'pixel_aupro', 'image_auroc', 'image_ap'], tablefmt="pipe")
+#     logger.info("\n%s", results)
 
 
 if __name__ == '__main__':
