@@ -140,13 +140,17 @@ def predict(args):
             img = compose(img)
             img = np.array(img)
             # img = preprocess(img)
+            # 创建蓝色背景
+            img[:,:,2] = 255
+
             
             anomaly_map_np = anomaly_map.squeeze(0).numpy()
             heatmap = plt.cm.viridis(anomaly_map_np / anomaly_map_np.max())
             heatmap = (heatmap * 255).astype(np.uint8)
             
-            # 将热图转换为RGB格式
+            # 选择RGB通道，忽略Alpha通道
             heatmap_rgb = Image.fromarray(heatmap[..., :3])
+            heatmap_rgb = np.array(heatmap_rgb)
             
             # 将anomaly_map转换为三通道
             # anomaly_map_np = np.stack([anomaly_map_np] * 3, axis=-1)
@@ -155,7 +159,6 @@ def predict(args):
             
             original_image_np = img.astype(np.uint8)
             overlay_image = original_image_np.copy()
-            # 使用透明度混合原图和anomaly_map,作用在红色通道上
             # alpha表示anomaly_map的透明度，1.0表示完全显示anomaly_map，0.0表示完全显示原图
             alpha = 0.5
             overlay_image = alpha * heatmap_rgb + (1 - alpha) * overlay_image
