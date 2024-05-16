@@ -8,6 +8,7 @@ from utils import normalize
 from dataset import Dataset
 from logger import get_logger
 from tqdm import tqdm
+from PIL import Image
 
 import os
 import random
@@ -28,6 +29,12 @@ from visualization import visualizer
 from metrics import image_level_metrics, pixel_level_metrics
 from tqdm import tqdm
 from scipy.ndimage import gaussian_filter
+
+
+
+
+
+
 def predict(args):
     
     # import pdb
@@ -90,6 +97,7 @@ def predict(args):
         results[cls_name[0]]['imgs_masks'].append(gt_mask)  # px
         results[cls_name[0]]['gt_sp'].extend(items['anomaly'].detach().cpu())
 
+        
         with torch.no_grad():
             image_features, patch_features = model.encode_image(image, features_list, DPAM_layer = 20)
             image_features = image_features / image_features.norm(dim=-1, keepdim=True)
@@ -105,7 +113,7 @@ def predict(args):
                     similarity_map = AnomalyCLIP_lib.get_similarity_map(similarity[:, 1:, :], args.image_size)
                     anomaly_map = (similarity_map[...,1] + 1 - similarity_map[...,0])/2.0
                     anomaly_map_list.append(anomaly_map)
-
+        
             anomaly_map = torch.stack(anomaly_map_list)
             
             anomaly_map = anomaly_map.sum(dim = 0)
@@ -113,6 +121,11 @@ def predict(args):
             anomaly_map = torch.stack([torch.from_numpy(gaussian_filter(i, sigma = args.sigma)) for i in anomaly_map.detach().cpu()], dim = 0 )
             results[cls_name[0]]['anomaly_maps'].append(anomaly_map)
             # visualizer(items['img_path'], anomaly_map.detach().cpu().numpy(), args.image_size, args.save_path, cls_name)
+            
+            anomaly_map_np = anomaly_map.squeeze(0).numpy()*255
+            anomaly_map_np = anomaly_map_np.astype(np.uint8)
+            image = Image.fromarray(anomaly_map_np)
+            image.save(args.save_path+'anomaly_map_' + str(idx) +'.png')
 
 #     table_ls = []
 #     image_auroc_list = []
