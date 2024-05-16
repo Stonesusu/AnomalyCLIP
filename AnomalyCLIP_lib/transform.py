@@ -78,6 +78,8 @@ def image_transform(
         aug_cfg = AugmentationCfg(**aug_cfg)
     else:
         aug_cfg = aug_cfg or AugmentationCfg()
+        
+
     normalize = Normalize(mean=mean, std=std)
     if is_train:
         aug_cfg_dict = {k: v for k, v in asdict(aug_cfg).items() if v is not None}

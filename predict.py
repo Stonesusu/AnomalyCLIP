@@ -123,23 +123,29 @@ def predict(args):
             # visualizer(items['img_path'], anomaly_map.detach().cpu().numpy(), args.image_size, args.save_path, cls_name)
             
             
-            import pdb
-            pdb.set_trace()
+            # import pdb
+            # pdb.set_trace()
+            # tmp = np.clip(anomaly_map.squeeze(0).numpy()*255,0,255).astype(np.uint8)
             img = Image.open(items['img_path'][0])
-            # anomaly_map_np = anomaly_map.numpy()*255
+            img = np.array(img)/255.0
+            # img = preprocess(img)
             anomaly_map_np = anomaly_map.squeeze(0).numpy()*255
             anomaly_map_np = anomaly_map_np.astype(np.uint8)
-            original_image_np = img.squeeze(0).astype(np.uint8)
-            # 将anomaly_map转换为三通道
-            anomaly_map_np_rgb = np.stack([anomaly_map_np] * 3, axis=-1)
             
+#             # 将anomaly_map转换为三通道
+            anomaly_map_np_rgb = np.stack([anomaly_map_np] * 3, axis=-1)
+            anomaly_map_np_rgb = anomaly_map_np_rgb.transpose((2, 0, 1))
+            
+            
+            original_image_np = img.numpy().astype(np.uint8)
             # 使用透明度混合原图和anomaly_map
             # alpha表示anomaly_map的透明度，1.0表示完全显示anomaly_map，0.0表示完全显示原图
-            alpha = 0.5
+            alpha = 0.0
             overlay_image = alpha * anomaly_map_np_rgb + (1 - alpha) * original_image_np
 
             # 确保值在0-255的范围内
             overlay_image = np.clip(overlay_image, 0, 255).astype(np.uint8)
+            overlay_image = overlay_image.transpose((1, 2, 0))
             overlay_image = Image.fromarray(overlay_image)
             overlay_image.save(args.save_path+items['img_path'][0].replace('/','_')+'anomaly_map' +'.png')
 
