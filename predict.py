@@ -31,10 +31,6 @@ from tqdm import tqdm
 from scipy.ndimage import gaussian_filter
 
 
-
-
-
-
 def predict(args):
     
     # import pdb
@@ -87,6 +83,9 @@ def predict(args):
     text_features = text_features/text_features.norm(dim=-1, keepdim=True)
 
 
+    # import pdb
+    # pdb.set_trace()
+    
     model.to(device)
     for idx, items in enumerate(tqdm(test_dataloader)):
         image = items['img'].to(device)
@@ -116,16 +115,33 @@ def predict(args):
         
             anomaly_map = torch.stack(anomaly_map_list)
             
+            
             anomaly_map = anomaly_map.sum(dim = 0)
             results[cls_name[0]]['pr_sp'].extend(text_probs.detach().cpu())
             anomaly_map = torch.stack([torch.from_numpy(gaussian_filter(i, sigma = args.sigma)) for i in anomaly_map.detach().cpu()], dim = 0 )
             results[cls_name[0]]['anomaly_maps'].append(anomaly_map)
             # visualizer(items['img_path'], anomaly_map.detach().cpu().numpy(), args.image_size, args.save_path, cls_name)
             
+            
+            import pdb
+            pdb.set_trace()
+            img = Image.open(items['img_path'][0])
+            # anomaly_map_np = anomaly_map.numpy()*255
             anomaly_map_np = anomaly_map.squeeze(0).numpy()*255
             anomaly_map_np = anomaly_map_np.astype(np.uint8)
-            image = Image.fromarray(anomaly_map_np)
-            image.save(args.save_path+'anomaly_map_' + str(idx) +'.png')
+            original_image_np = img.squeeze(0).astype(np.uint8)
+            # 将anomaly_map转换为三通道
+            anomaly_map_np_rgb = np.stack([anomaly_map_np] * 3, axis=-1)
+            
+            # 使用透明度混合原图和anomaly_map
+            # alpha表示anomaly_map的透明度，1.0表示完全显示anomaly_map，0.0表示完全显示原图
+            alpha = 0.5
+            overlay_image = alpha * anomaly_map_np_rgb + (1 - alpha) * original_image_np
+
+            # 确保值在0-255的范围内
+            overlay_image = np.clip(overlay_image, 0, 255).astype(np.uint8)
+            overlay_image = Image.fromarray(overlay_image)
+            overlay_image.save(args.save_path+items['img_path'][0].replace('/','_')+'anomaly_map' +'.png')
 
 #     table_ls = []
 #     image_auroc_list = []
