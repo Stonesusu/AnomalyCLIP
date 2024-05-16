@@ -31,6 +31,15 @@ from tqdm import tqdm
 from scipy.ndimage import gaussian_filter
 
 
+from torchvision.transforms import Normalize, Compose, RandomResizedCrop, InterpolationMode, ToTensor, Resize, \
+    CenterCrop
+
+transforms = [
+                Resize(518, interpolation=InterpolationMode.BICUBIC),
+                CenterCrop(518),
+            ]
+compose = Compose(transforms)
+
 def predict(args):
     
     # import pdb
@@ -127,21 +136,24 @@ def predict(args):
             # pdb.set_trace()
             # tmp = np.clip(anomaly_map.squeeze(0).numpy()*255,0,255).astype(np.uint8)
             img = Image.open(items['img_path'][0])
-            img = np.array(img)/255.0
+            img = compose(img)
+            img = np.array(img).transpose((2, 0, 1))
+            
             # img = preprocess(img)
             anomaly_map_np = anomaly_map.squeeze(0).numpy()*255
             anomaly_map_np = anomaly_map_np.astype(np.uint8)
             
-#             # 将anomaly_map转换为三通道
-            anomaly_map_np_rgb = np.stack([anomaly_map_np] * 3, axis=-1)
-            anomaly_map_np_rgb = anomaly_map_np_rgb.transpose((2, 0, 1))
+# #             # 将anomaly_map转换为三通道
+#             anomaly_map_np_rgb = np.stack([anomaly_map_np] * 3, axis=-1)
+#             anomaly_map_np_rgb = anomaly_map_np_rgb.transpose((2, 0, 1))
             
             
-            original_image_np = img.numpy().astype(np.uint8)
-            # 使用透明度混合原图和anomaly_map
+            original_image_np = img.astype(np.uint8)
+            overlay_image = original_image_np.copy()
+            # 使用透明度混合原图和anomaly_map,作用在红色通道上
             # alpha表示anomaly_map的透明度，1.0表示完全显示anomaly_map，0.0表示完全显示原图
-            alpha = 0.0
-            overlay_image = alpha * anomaly_map_np_rgb + (1 - alpha) * original_image_np
+            alpha = 0.5
+            overlay_image[0, :, :]= alpha * anomaly_map_np + (1 - alpha) * overlay_image[0, :, :]
 
             # 确保值在0-255的范围内
             overlay_image = np.clip(overlay_image, 0, 255).astype(np.uint8)
