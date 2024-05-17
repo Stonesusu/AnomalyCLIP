@@ -183,70 +183,106 @@ def predict(args):
             
 
 
-#     table_ls = []
-#     image_auroc_list = []
-#     image_ap_list = []
-#     pixel_auroc_list = []
-#     pixel_aupro_list = []
-#     for obj in obj_list:
-#         table = []
-#         table.append(obj)
-#         results[obj]['imgs_masks'] = torch.cat(results[obj]['imgs_masks'])
-#         results[obj]['anomaly_maps'] = torch.cat(results[obj]['anomaly_maps']).detach().cpu().numpy()
-#         if args.metrics == 'image-level':
-#             image_auroc = image_level_metrics(results, obj, "image-auroc")
-#             image_ap = image_level_metrics(results, obj, "image-ap")
-#             table.append(str(np.round(image_auroc * 100, decimals=1)))
-#             table.append(str(np.round(image_ap * 100, decimals=1)))
-#             image_auroc_list.append(image_auroc)
-#             image_ap_list.append(image_ap) 
-#         elif args.metrics == 'pixel-level':
-#             pixel_auroc = pixel_level_metrics(results, obj, "pixel-auroc")
-#             pixel_aupro = pixel_level_metrics(results, obj, "pixel-aupro")
-#             table.append(str(np.round(pixel_auroc * 100, decimals=1)))
-#             table.append(str(np.round(pixel_aupro * 100, decimals=1)))
-#             pixel_auroc_list.append(pixel_auroc)
-#             pixel_aupro_list.append(pixel_aupro)
-#         elif args.metrics == 'image-pixel-level':
-#             image_auroc = image_level_metrics(results, obj, "image-auroc")
-#             image_ap = image_level_metrics(results, obj, "image-ap")
-#             pixel_auroc = pixel_level_metrics(results, obj, "pixel-auroc")
-#             pixel_aupro = pixel_level_metrics(results, obj, "pixel-aupro")
-#             table.append(str(np.round(pixel_auroc * 100, decimals=1)))
-#             table.append(str(np.round(pixel_aupro * 100, decimals=1)))
-#             table.append(str(np.round(image_auroc * 100, decimals=1)))
-#             table.append(str(np.round(image_ap * 100, decimals=1)))
-#             image_auroc_list.append(image_auroc)
-#             image_ap_list.append(image_ap) 
-#             pixel_auroc_list.append(pixel_auroc)
-#             pixel_aupro_list.append(pixel_aupro)
-#         table_ls.append(table)
+def predict_once(args):
+    # import pdb
+    # pdb.set_trace()
+    
+    img_size = args.image_size
+    features_list = args.features_list
+    
+    device = "cuda" if torch.cuda.is_available() else "cpu"
 
-#     if args.metrics == 'image-level':
-#         # logger
-#         table_ls.append(['mean', 
-#                         str(np.round(np.mean(image_auroc_list) * 100, decimals=1)),
-#                         str(np.round(np.mean(image_ap_list) * 100, decimals=1))])
-#         results = tabulate(table_ls, headers=['objects', 'image_auroc', 'image_ap'], tablefmt="pipe")
-#     elif args.metrics == 'pixel-level':
-#         # logger
-#         table_ls.append(['mean', str(np.round(np.mean(pixel_auroc_list) * 100, decimals=1)),
-#                         str(np.round(np.mean(pixel_aupro_list) * 100, decimals=1))
-#                        ])
-#         results = tabulate(table_ls, headers=['objects', 'pixel_auroc', 'pixel_aupro'], tablefmt="pipe")
-#     elif args.metrics == 'image-pixel-level':
-#         # logger
-#         table_ls.append(['mean', str(np.round(np.mean(pixel_auroc_list) * 100, decimals=1)),
-#                         str(np.round(np.mean(pixel_aupro_list) * 100, decimals=1)), 
-#                         str(np.round(np.mean(image_auroc_list) * 100, decimals=1)),
-#                         str(np.round(np.mean(image_ap_list) * 100, decimals=1))])
-#         results = tabulate(table_ls, headers=['objects', 'pixel_auroc', 'pixel_aupro', 'image_auroc', 'image_ap'], tablefmt="pipe")
-#     logger.info("\n%s", results)
+    AnomalyCLIP_parameters = {"Prompt_length": args.n_ctx, "learnabel_text_embedding_depth": args.depth, "learnabel_text_embedding_length": args.t_n_ctx}
+    
+    model, _ = AnomalyCLIP_lib.load("ViT-L/14@336px", device=device, design_details = AnomalyCLIP_parameters)
+    model.eval()
+
+    preprocess, target_transform = get_transform(args)
+    
+    prompt_learner = AnomalyCLIP_PromptLearner(model.to("cpu"), AnomalyCLIP_parameters)
+    checkpoint = torch.load(args.checkpoint_path,map_location=torch.device(device))
+    prompt_learner.load_state_dict(checkpoint["prompt_learner"])
+    prompt_learner.to(device)
+    model.to(device)
+    model.visual.DAPM_replace(DPAM_layer = 20)
+
+    prompts, tokenized_prompts, compound_prompts_text = prompt_learner(cls_id = None)
+    text_features = model.encode_text_learn(prompts, tokenized_prompts, compound_prompts_text).float()
+    text_features = torch.stack(torch.chunk(text_features, dim = 0, chunks = 2), dim = 1)
+    text_features = text_features/text_features.norm(dim=-1, keepdim=True)
+
+    model.to(device)
+    
+    # import pdb
+    # pdb.set_trace()
+    
+    image = Image.open(args.image_path)
+    image = preprocess(image).to(device)
+    image = image.unsqueeze(0)
+    with torch.no_grad():
+        image_features, patch_features = model.encode_image(image, features_list, DPAM_layer = 20)
+        image_features = image_features / image_features.norm(dim=-1, keepdim=True)
+
+        text_probs = image_features @ text_features.permute(0, 2, 1)
+        text_probs = (text_probs/0.07).softmax(-1)
+        text_probs = text_probs[:, 0, 1]
+        anomaly_map_list = []
+        for idx, patch_feature in enumerate(patch_features):
+            if idx >= args.feature_map_layer[0]:
+                patch_feature = patch_feature/ patch_feature.norm(dim = -1, keepdim = True)
+                similarity, _ = AnomalyCLIP_lib.compute_similarity(patch_feature, text_features[0])
+                similarity_map = AnomalyCLIP_lib.get_similarity_map(similarity[:, 1:, :], args.image_size)
+                anomaly_map = (similarity_map[...,1] + 1 - similarity_map[...,0])/2.0
+                anomaly_map_list.append(anomaly_map)
+
+        anomaly_map = torch.stack(anomaly_map_list)
+
+
+        anomaly_map = anomaly_map.sum(dim = 0)
+        anomaly_map = torch.stack([torch.from_numpy(gaussian_filter(i, sigma = args.sigma)) for i in anomaly_map.detach().cpu()], dim = 0 )
+        # visualizer(items['img_path'], anomaly_map.detach().cpu().numpy(), args.image_size, args.save_path, cls_name)
+
+        img = Image.open(args.image_path)
+        img = compose(img)
+        img = np.array(img)
+        # img = img.transpose((2, 0, 1))
+        # img = preprocess(img)
+
+        anomaly_map_np = anomaly_map.squeeze(0).numpy()*255
+        anomaly_map_np = anomaly_map_np.astype(np.uint8)
+
+        # 将anomaly_map转换为三通道
+        anomaly_map_np = np.stack([anomaly_map_np] * 3, axis=-1)
+        # anomaly_map_np = anomaly_map_np.transpose((2, 0, 1))
+        anomaly_map_np = cv2.cvtColor(anomaly_map_np, cv2.COLOR_RGB2BGR)
+        heat_img = cv2.applyColorMap(anomaly_map_np, cv2.COLORMAP_JET) # 注意此处的三通道热力图是cv2专有的BGR排列
+        heat_img = cv2.cvtColor(heat_img, cv2.COLOR_BGR2RGB)# 将BGR图像转为RGB图像
+
+        try:
+            if img.shape == heat_img.shape:
+                img_add = cv2.addWeighted(img, 0.8, heat_img, 0.2, 0)
+            else:
+                img_add = heat_img
+            # # 五个参数分别为 图像1 图像1透明度(权重) 图像2 图像2透明度(权重) 叠加后图像亮度
+        except OSError as e:
+            print(f"img add 出错: {e}")
+
+        # 确保值在0-255的范围内
+        img_add = np.clip(img_add, 0, 255).astype(np.uint8)
+        # overlay_image = overlay_image.transpose((1, 2, 0))
+        img_add = Image.fromarray(img_add)
+        
+        filepath = args.image_path.split('/')[-2]
+        filename = args.image_path.split('/')[-1].split('.')[0]
+        img_add.save(filepath+'/'+filename+'_anomaly_map' +'.png')
+    
+    
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("AnomalyCLIP", add_help=True)
     # paths
+    parser.add_argument("--image_path", type=str, default="", help="path to one image")
     parser.add_argument("--data_path", type=str, default="./data/visa", help="path to test dataset")
     parser.add_argument("--save_path", type=str, default='./results/', help='path to save results')
     parser.add_argument("--checkpoint_path", type=str, default='./checkpoint/', help='path to checkpoint')
@@ -265,4 +301,5 @@ if __name__ == '__main__':
     args = parser.parse_args()
     print(args)
     setup_seed(args.seed)
-    predict(args)
+    # predict(args)
+    predict_once(args)

@@ -12,9 +12,11 @@ for i in "${!depth[@]}";do
         base_dir=${depth[i]}_${n_ctx[j]}_${t_n_ctx[0]}_multiscale
         save_dir=./checkpoints/${base_dir}/
         CUDA_VISIBLE_DEVICES=${device} python predict.py --dataset mvtec \
-        --data_path /mnt/workspace/mvtec_anomaly_detection --save_path ./results/${base_dir}/zero_shot \
+        --data_path /mnt/workspace/mvtec_anomaly_detection \
+        --save_path ./results/${base_dir}/zero_shot \
         --checkpoint_path ${save_dir}epoch_15.pth \
-         --features_list 6 12 18 24 --image_size 518 --depth ${depth[i]} --n_ctx ${n_ctx[j]} --t_n_ctx ${t_n_ctx[0]}
+        --features_list 6 12 18 24 --image_size 518 --depth ${depth[i]} --n_ctx ${n_ctx[j]} --t_n_ctx ${t_n_ctx[0]} \
+        --image_path /mnt/workspace/AnomalyCLIP/inter/002.png
     wait
     done
 done
