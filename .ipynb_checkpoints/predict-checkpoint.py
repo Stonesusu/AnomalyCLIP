@@ -151,15 +151,35 @@ def predict(args):
             heat_img = cv2.applyColorMap(anomaly_map_np, cv2.COLORMAP_JET) # 注意此处的三通道热力图是cv2专有的BGR排列
             heat_img = cv2.cvtColor(heat_img, cv2.COLOR_BGR2RGB)# 将BGR图像转为RGB图像
             
-            
-            img_add = cv2.addWeighted(img, 0.8, heat_img, 0.2, 0)
-            # # 五个参数分别为 图像1 图像1透明度(权重) 图像2 图像2透明度(权重) 叠加后图像亮度
+            try:
+                if img.shape == heat_img.shape:
+                    img_add = cv2.addWeighted(img, 0.8, heat_img, 0.2, 0)
+                else:
+                    img_add = heat_img
+                # # 五个参数分别为 图像1 图像1透明度(权重) 图像2 图像2透明度(权重) 叠加后图像亮度
+            except OSError as e:
+                print(f"img add 出错: {e}")
 
             # 确保值在0-255的范围内
             img_add = np.clip(img_add, 0, 255).astype(np.uint8)
             # overlay_image = overlay_image.transpose((1, 2, 0))
             img_add = Image.fromarray(img_add)
-            img_add.save(args.save_path+items['img_path'][0].replace('/','_')+'anomaly_map' +'.png')
+            
+            directory = args.save_path+'/'+cls_name[0]
+            # 检查目录是否已存在
+            if not os.path.exists(directory):
+                try:
+                    os.mkdir(directory)
+                    # print(f"目录'{directory}'已创建。")
+                except OSError as e:
+                    print(f"创建目录时出错: {e}")
+            else:
+                # print(f"目录'{directory}'已存在。")
+                pass
+
+            # import pdb
+            # pdb.set_trace()
+            img_add.save(directory+'/'+items['img_path'][0].replace('/','_')+'anomaly_map' +'.png')
             
 
 
