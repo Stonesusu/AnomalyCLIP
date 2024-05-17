@@ -9,7 +9,7 @@ from dataset import Dataset
 from logger import get_logger
 from tqdm import tqdm
 from PIL import Image
-import matplotlib.pyplot as plt
+import cv2
 
 import os
 import random
@@ -135,39 +135,33 @@ def predict(args):
             
             # import pdb
             # pdb.set_trace()
-            # tmp = np.clip(anomaly_map.squeeze(0).numpy()*255,0,255).astype(np.uint8)
             img = Image.open(items['img_path'][0])
             img = compose(img)
             img = np.array(img)
+            # img = img.transpose((2, 0, 1))
             # img = preprocess(img)
-            # 创建蓝色背景
-            img[:,:,2] = 255
-
             
-            anomaly_map_np = anomaly_map.squeeze(0).numpy()
-            heatmap = plt.cm.viridis(anomaly_map_np / anomaly_map_np.max())
-            heatmap = (heatmap * 255).astype(np.uint8)
-            
-            # 选择RGB通道，忽略Alpha通道
-            heatmap_rgb = Image.fromarray(heatmap[..., :3])
-            heatmap_rgb = np.array(heatmap_rgb)
+            anomaly_map_np = anomaly_map.squeeze(0).numpy()*255
+            anomaly_map_np = anomaly_map_np.astype(np.uint8)
             
             # 将anomaly_map转换为三通道
-            # anomaly_map_np = np.stack([anomaly_map_np] * 3, axis=-1)
+            anomaly_map_np = np.stack([anomaly_map_np] * 3, axis=-1)
             # anomaly_map_np = anomaly_map_np.transpose((2, 0, 1))
+            anomaly_map_np = cv2.cvtColor(anomaly_map_np, cv2.COLOR_RGB2BGR)
+            heat_img = cv2.applyColorMap(anomaly_map_np, cv2.COLORMAP_JET) # 注意此处的三通道热力图是cv2专有的BGR排列
+            heat_img = cv2.cvtColor(heat_img, cv2.COLOR_BGR2RGB)# 将BGR图像转为RGB图像
             
             
-            original_image_np = img.astype(np.uint8)
-            overlay_image = original_image_np.copy()
-            # alpha表示anomaly_map的透明度，1.0表示完全显示anomaly_map，0.0表示完全显示原图
-            alpha = 0.5
-            overlay_image = alpha * heatmap_rgb + (1 - alpha) * overlay_image
+            img_add = cv2.addWeighted(img, 0.8, heat_img, 0.2, 0)
+            # # 五个参数分别为 图像1 图像1透明度(权重) 图像2 图像2透明度(权重) 叠加后图像亮度
 
             # 确保值在0-255的范围内
-            overlay_image = np.clip(overlay_image, 0, 255).astype(np.uint8)
+            img_add = np.clip(img_add, 0, 255).astype(np.uint8)
             # overlay_image = overlay_image.transpose((1, 2, 0))
-            overlay_image = Image.fromarray(overlay_image)
-            overlay_image.save(args.save_path+items['img_path'][0].replace('/','_')+'anomaly_map' +'.png')
+            img_add = Image.fromarray(img_add)
+            img_add.save(args.save_path+items['img_path'][0].replace('/','_')+'anomaly_map' +'.png')
+            
+
 
 #     table_ls = []
 #     image_auroc_list = []
