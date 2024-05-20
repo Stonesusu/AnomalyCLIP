@@ -32,7 +32,7 @@ for i in "${!depth[@]}";do
         save_dir=./checkpoints/${base_dir}/
         CUDA_VISIBLE_DEVICES=${device} python train.py \
         --dataset mvtec \
-        --train_data_path /remote-home/iot_zhouqihang/data/mvdataset \
+        --train_data_path /mnt/workspace/mvtec_anomaly_detection \
         --save_path ${save_dir} \
         --features_list 6 12 18 24 --image_size 518  --batch_size 8 --print_freq 1 \
         --epoch 100 \
