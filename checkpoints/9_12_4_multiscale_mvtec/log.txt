@@ -1,0 +1,14 @@
+24-05-20 15:47:41.030 - INFO: epoch [1/100], loss:3.8595, image_loss:0.4727
+24-05-20 15:56:59.083 - INFO: epoch [2/100], loss:3.6246, image_loss:0.4135
+24-05-20 16:06:16.632 - INFO: epoch [3/100], loss:3.5692, image_loss:0.4101
+24-05-20 16:15:34.354 - INFO: epoch [4/100], loss:3.5622, image_loss:0.3928
+24-05-20 16:55:11.317 - INFO: epoch [1/100], loss:3.7628, image_loss:0.4566
+24-05-20 17:04:30.713 - INFO: epoch [2/100], loss:3.5911, image_loss:0.4086
+24-05-20 17:13:50.275 - INFO: epoch [3/100], loss:3.5501, image_loss:0.4045
+24-05-20 17:23:09.293 - INFO: epoch [4/100], loss:3.5379, image_loss:0.3900
+24-05-20 17:32:28.841 - INFO: epoch [5/100], loss:3.5201, image_loss:0.3902
+24-05-20 17:41:48.051 - INFO: epoch [6/100], loss:3.5164, image_loss:0.3818
+24-05-20 17:51:06.848 - INFO: epoch [7/100], loss:3.5143, image_loss:0.3862
+24-05-20 18:00:25.328 - INFO: epoch [8/100], loss:3.5014, image_loss:0.3839
+24-05-20 18:09:43.889 - INFO: epoch [9/100], loss:3.5072, image_loss:0.3816
+24-05-20 18:19:02.878 - INFO: epoch [10/100], loss:3.5061, image_loss:0.3774
