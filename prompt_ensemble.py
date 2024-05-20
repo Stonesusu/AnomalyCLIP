@@ -82,6 +82,8 @@ def encode_text_with_prompt_ensemble(model, texts, device):
 
 def _get_clones(module, N):
     return nn.ModuleList([deepcopy(module) for i in range(N)])
+
+
 class AnomalyCLIP_PromptLearner(nn.Module):
     def __init__(self, clip_model, design_details):
         super().__init__()
@@ -144,7 +146,7 @@ class AnomalyCLIP_PromptLearner(nn.Module):
             # Random Initialization
             if True:
                 print("Initializing class-specific contexts")
-                #这里是cls是类的个数，n_ctx_pos代表learnable token的长度，ctx_dim表示prompt的dimension
+                #这里是n_cls是类的个数，n_ctx_pos代表learnable token的长度，ctx_dim表示prompt的dimension
                 ctx_vectors_pos = torch.empty(self.n_cls, self.normal_num, n_ctx_pos, ctx_dim, dtype=dtype)
                 ctx_vectors_neg = torch.empty(self.n_cls, self.anormaly_num, n_ctx_neg, ctx_dim, dtype=dtype)
             else:
