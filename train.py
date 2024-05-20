@@ -47,8 +47,9 @@ def train(args):
     loss_focal = FocalLoss()
     loss_dice = BinaryDiceLoss()
     
-    
+    #模型设置为eval，参数不进行训练
     model.eval()
+    #文本提示词可进行参数训练
     prompt_learner.train()
     for epoch in tqdm(range(args.epoch)):
         model.eval()
