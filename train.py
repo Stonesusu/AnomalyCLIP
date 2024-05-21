@@ -37,6 +37,8 @@ def train(args):
 
   ##########################################################################################
     prompt_learner = AnomalyCLIP_PromptLearner(model.to("cpu"), AnomalyCLIP_parameters)
+    checkpoint = torch.load(args.checkpoint_path,map_location=torch.device(device))
+    prompt_learner.load_state_dict(checkpoint["prompt_learner"])
     prompt_learner.to(device)
     model.to(device)
     model.visual.DAPM_replace(DPAM_layer = 20)
@@ -82,7 +84,7 @@ def train(args):
             # Apply DPAM surgery
             text_probs = image_features.unsqueeze(1) @ text_features.permute(0, 2, 1)
             text_probs = text_probs[:, 0, ...]/0.07
-            image_loss = F.cross_entropy(text_probs.squeeze(), label.long().cuda())
+            image_loss = F.cross_entropy(text_probs.squeeze(), label.long().cuda() if device=="cuda" else label.long())
             image_loss_list.append(image_loss.item())
             #########################################################################
             similarity_map_list = []
@@ -117,6 +119,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser("AnomalyCLIP", add_help=True)
     parser.add_argument("--train_data_path", type=str, default="./data/visa", help="train dataset path")
     parser.add_argument("--save_path", type=str, default='./checkpoint', help='path to save results')
+    parser.add_argument("--checkpoint_path", type=str, default='./checkpoint/', help='path to checkpoint')
 
 
     parser.add_argument("--dataset", type=str, default='mvtec', help="train dataset name")
